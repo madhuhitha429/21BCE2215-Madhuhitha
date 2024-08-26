@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle on the Grid</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Battle on the Grid</h1>
+    <div id="game-info">
+        <div id="current-player">Current Player: A</div>
+    </div>
+    <div id="game-board-container">
+        <div id="player-a-history">
+            <h3>Player A</h3>
+            <ul id="history-a"></ul>
+        </div>
+        <div id="game-board" class="board"></div>
+        <div id="player-b-history">
+            <h3>Player B</h3>
+            <ul id="history-b"></ul>
+        </div>
+    </div>
+    <div id="move-input-section">
+        <input type="text" id="move-input" placeholder="e.g., A-P1 F">
+        <button id="submit-move">Submit Move</button>
+    </div>
+    <button id="reset-btn">Reset Game</button>
+
+    <script>
+        const socket = io();
+
+        function renderBoard(board) {
+            const boardDiv = document.getElementById('game-board');
+            boardDiv.innerHTML = ''; // Clear the board
+            board.forEach((row, rowIndex) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'row';
+                row.forEach((cell, cellIndex) => {  
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'cell';
+                    if (cell) {
+                        const [player, piece] = cell.split('-');
+                        cellDiv.setAttribute('data-character', cell);
+                        if (player === 'A') {
+                            cellDiv.classList.add('player-a');
+                        } else if (player === 'B') {
+                            cellDiv.classList.add('player-b');
+                        }
+                        cellDiv.innerText = piece;
+                    } else {
+                        cellDiv.classList.add('empty');
+                    }
+
+                    cellDiv.addEventListener('click', () => handleCellClick(cell, rowIndex, cellIndex));
+                    rowDiv.appendChild(cellDiv);
+                });
+                boardDiv.appendChild(rowDiv);
+            });
+        }
+
+        function handleCellClick(character, x, y) {
+            if (character) {
+                // Emit a move request with the selected character and its position
+                socket.emit('suggestMove', { character, x, y });
+            }
+        }
+
+        function updateMoveHistory(moveHistory) {
+            const historyA = document.getElementById('history-a');
+            const historyB = document.getElementById('history-b');
+            historyA.innerHTML = '';
+            historyB.innerHTML = '';
+
+            moveHistory['A'].forEach(move => {
+                const li = document.createElement('li');
+                li.innerText = move;
+                historyA.appendChild(li);
+            });
+
+            moveHistory['B'].forEach(move => {
+                const li = document.createElement('li');
+                li.innerText = move;
+                historyB.appendChild(li);
+            });
+        }
+
+        socket.on('gameStateUpdate', (data) => {
+            renderBoard(data.board);
+            document.getElementById('current-player').innerText = `Current Player: ${data.current_player}`;
+            updateMoveHistory(data.move_history);
+            document.getElementById('reset-btn').style.display = 'block'; // Ensure Reset button is always displayed
+            if (data.winner) {
+                alert(`Game over! Player ${data.winner} wins!`);
+            }
+        });
+
+        socket.on('suggestedMoves', (moves) => {
+            const boardDiv = document.getElementById('game-board');
+            boardDiv.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('highlight');
+            });
+            moves.forEach(({ x, y }) => {
+                const row = boardDiv.children[x];
+                const cell = row.children[y];
+                cell.classList.add('highlight');
+            });
+        });
+
+        socket.on('invalidMove', () => {
+            alert('Invalid move');
+        });
+
+        document.getElementById('submit-move').addEventListener('click', () => {
+            const moveInput = document.getElementById('move-input').value;
+            const [character, move] = moveInput.split(' ');
+            if (character && move) {
+                socket.emit('move', { character, move });
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            socket.emit('reset');
+        });
+
+        socket.on('connect', () => {
+            socket.emit('connect');
+        });
+
+        // Trigger game reset to display the board when the page loads
+        socket.emit('reset');
+    </script>
+</body>
+</html>
