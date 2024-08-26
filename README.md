@@ -12,19 +12,9 @@ Technologies Used
 Backend: Python, Flask, Socket.IO
 Frontend: HTML, CSS, JavaScript
 WebSocket: Socket.IO
-Setup Instructions
-Prerequisites
-Python 3.6+
-Node.js (for running Socket.IO)
-A modern web browser
-Installation
-Clone the Repository
 
-bash
-Copy code
-git clone https://github.com/yourusername/battle-on-the-grid.git
-cd battle-on-the-grid
-Set Up the Python Environment
+
+
 
 Create a virtual environment and activate it:
 
